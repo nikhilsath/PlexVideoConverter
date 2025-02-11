@@ -1,15 +1,31 @@
 import sys
+import subprocess
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QTableWidget, QTableWidgetItem, QLabel, QTabWidget, QProgressBar, QFrame
 )
 from PyQt6.QtCharts import QChart, QChartView, QPieSeries
+from ui_job_list import JobListUI
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QColor
 
 class MainUI(QMainWindow):
     def __init__(self):
         super().__init__()
+         # Run database processing before launching UI
+        self.run_database_processing()
+        
+        self.setWindowTitle("Plex Video Converter")
+        self.setMinimumSize(1300, 600)  # Set the minimum window size
+        self.initUI()
+
+    def run_database_processing(self):
+        """Runs the database processing script before launching the UI."""
+        try:
+            subprocess.run(["python3", "database_processing.py"], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error running database processing: {e}")
+
         self.setWindowTitle("Plex Video Converter")
         self.setMinimumSize(1300, 600)  # Set the minimum window size
         self.initUI()
@@ -30,15 +46,12 @@ class MainUI(QMainWindow):
         # Use Qt.ItemIsUserCheckable for checkboxes
         center_panel = QVBoxLayout()
         self.tab_widget = QTabWidget()
-        self.job_list_tab = self.create_job_list()
+        self.job_list_ui = JobListUI(self)
+        self.job_list_tab = self.job_list_ui.job_list_tab # Calls job list logic from ui_job_list.py
         self.logs_tab = self.create_logs_panel()
         self.tab_widget.addTab(self.job_list_tab, "Job List")
         self.tab_widget.addTab(self.logs_tab, "Logs / Errors")
         center_panel.addWidget(self.tab_widget)
-        
-        # Add "Add to Queue" Button Below the Job List
-        self.add_to_queue_button = QPushButton("Add Selected to Queue")
-        center_panel.addWidget(self.add_to_queue_button)
         
         # Add "Move to Front of Queue" Button Below the Job List
         self.move_to_front_button = QPushButton("Move to Front of Queue")
