@@ -18,7 +18,7 @@ class MainUI(QMainWindow):
         self.run_database_processing()
         
         self.setWindowTitle("Plex Video Converter")
-        self.setMinimumSize(1300, 600)  # Set the minimum window size
+        self.setMinimumSize(1400, 600)  # Set the minimum window size
         self.initUI()
 
     def run_database_processing(self):
