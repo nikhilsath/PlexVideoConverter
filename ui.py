@@ -2,17 +2,19 @@ import sys
 import subprocess
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QTableWidget, QTableWidgetItem, QLabel, QTabWidget, QProgressBar, QFrame
+    QTableWidget, QTableWidgetItem, QLabel, QTabWidget
 )
 from PyQt6.QtCharts import QChart, QChartView, QPieSeries
-from ui_job_list import JobListUI
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QColor
+from ui_job_list import JobListUI
+from db_handler import get_total_space_saved, get_estimated_total_savings
 
 class MainUI(QMainWindow):
     def __init__(self):
         super().__init__()
-         # Run database processing before launching UI
+        
+        # Run database processing before launching UI
         self.run_database_processing()
         
         self.setWindowTitle("Plex Video Converter")
@@ -26,10 +28,6 @@ class MainUI(QMainWindow):
         except subprocess.CalledProcessError as e:
             print(f"Error running database processing: {e}")
 
-        self.setWindowTitle("Plex Video Converter")
-        self.setMinimumSize(1300, 600)  # Set the minimum window size
-        self.initUI()
-
     def initUI(self):
         """Initialize the UI layout and structure"""
         main_widget = QWidget()
@@ -39,15 +37,20 @@ class MainUI(QMainWindow):
         left_panel = QVBoxLayout()
         self.pie_chart = self.create_pie_chart()
         left_panel.addWidget(self.pie_chart)
-        self.stats_label = QLabel("Space Saved So Far: 0 GB\nEstimated Total Savings: 0 GB")
+
+        # Fetch space savings values on program startup (Convert Bytes → GB)
+        total_saved = get_total_space_saved() / (1024 ** 3)  # Convert bytes to GB
+        estimated_savings = get_estimated_total_savings() / (1024 ** 3)  # Convert bytes to GB
+
+        self.stats_label = QLabel(f"Space Saved So Far: {total_saved:.2f} GB\nEstimated Total Savings: {estimated_savings:.2f} GB")
         left_panel.addWidget(self.stats_label)
-        
+
+
         # Center Panel (Job List & Logs Tab)
-        # Use Qt.ItemIsUserCheckable for checkboxes
         center_panel = QVBoxLayout()
         self.tab_widget = QTabWidget()
         self.job_list_ui = JobListUI(self)
-        self.job_list_tab = self.job_list_ui.job_list_tab # Calls job list logic from ui_job_list.py
+        self.job_list_tab = self.job_list_ui.job_list_tab  # Calls job list logic from ui_job_list.py
         self.logs_tab = self.create_logs_panel()
         self.tab_widget.addTab(self.job_list_tab, "Job List")
         self.tab_widget.addTab(self.logs_tab, "Logs / Errors")
@@ -84,6 +87,7 @@ class MainUI(QMainWindow):
         self.setCentralWidget(main_widget)
 
     def create_pie_chart(self):
+        """Creates and returns a pie chart widget with job distribution."""
         series = QPieSeries()
         series.append("Converted", 50)
         series.append("Processing", 30)
@@ -93,9 +97,8 @@ class MainUI(QMainWindow):
         chart = QChart()
         chart.addSeries(series)
         chart.setTitle("Job Status Distribution")
+        chart.legend().setVisible(False)  # Hide the default chart legend
 
-        # Hide the default chart legend
-        chart.legend().setVisible(False) 
         chartview = QChartView(chart)
         chartview.setMinimumSize(QSize(300, 300))
 
@@ -103,11 +106,10 @@ class MainUI(QMainWindow):
         legend_layout = QVBoxLayout()
         legend_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        # Verified color names from the PyQt6 documentation
         legend_labels = [
             ("Converted", QColor("cyan")),
             ("Processing", QColor("blue")),
-            ("Pending", QColor("darkBlue")),  
+            ("Pending", QColor("darkBlue")),
             ("Failed", QColor("black")),
         ]
 
@@ -131,20 +133,14 @@ class MainUI(QMainWindow):
 
         return chart_widget
     
-    def create_job_list(self):
-        """Creates a table to display job list with placeholder columns"""
-        job_list = QTableWidget()
-        job_list.setColumnCount(3)
-        job_list.setHorizontalHeaderLabels(["File Name", "Size (GB)", "Status"])
-        return job_list
-    
     def create_logs_panel(self):
-        """Creates a placeholder logs panel to display conversion logs/errors"""
+        """Creates a placeholder logs panel to display conversion logs/errors."""
         logs_panel = QLabel("Logs will appear here.")
         logs_panel.setAlignment(Qt.AlignmentFlag.AlignTop)
         return logs_panel
-    # Worker Machine Table
+
     def create_worker_table(self):
+        """Creates a table for managing workers."""
         worker_table = QTableWidget()
         worker_table.setColumnCount(4)
         worker_table.setHorizontalHeaderLabels(["Worker Name", "Status", "Processing", "Enable/Disable"])

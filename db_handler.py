@@ -29,3 +29,28 @@ def update_job_status_to_queued(file_names):
     cursor.execute(query, file_names)
     conn.commit()
     conn.close()
+def get_total_space_saved():
+    """Returns the total space saved from completed conversion jobs."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COALESCE(SUM(space_saved), 0) 
+        FROM ConversionQueue 
+        WHERE job_status = 'completed';
+    """)
+    total_saved = cursor.fetchone()[0]
+    conn.close()
+    return total_saved
+
+def get_estimated_total_savings():
+    """Returns the estimated total space savings from pending jobs."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COALESCE(SUM(space_saved), 0) 
+        FROM ConversionQueue 
+        WHERE job_status = 'pending';
+    """)
+    estimated_savings = cursor.fetchone()[0]
+    conn.close()
+    return estimated_savings
