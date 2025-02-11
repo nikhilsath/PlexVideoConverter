@@ -9,11 +9,20 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QColor
 from ui_job_list import JobListUI
 from db_handler import get_total_space_saved, get_estimated_total_savings, move_jobs_to_front
+from database_processing import register_local_worker
+from ui_worker_management import WorkerManagementUI
+
 
 class MainUI(QMainWindow):
     def __init__(self):
         super().__init__()
-        
+         # Register this machine as a worker
+        register_local_worker()
+
+        self.setWindowTitle("Plex Video Converter")
+        self.setMinimumSize(1300, 600)
+        self.initUI()
+
         # Run database processing before launching UI
         self.run_database_processing()
         
@@ -45,7 +54,6 @@ class MainUI(QMainWindow):
         self.stats_label = QLabel(f"Space Saved So Far: {total_saved:.2f} GB\nEstimated Total Savings: {estimated_savings:.2f} GB")
         left_panel.addWidget(self.stats_label)
 
-
         # Center Panel (Job List & Logs Tab)
         center_panel = QVBoxLayout()
         self.tab_widget = QTabWidget()
@@ -55,14 +63,22 @@ class MainUI(QMainWindow):
         self.tab_widget.addTab(self.job_list_tab, "Job List")
         self.tab_widget.addTab(self.logs_tab, "Logs / Errors")
         center_panel.addWidget(self.tab_widget)
-        
+
         # Right Panel (Worker Management)
         right_panel = QVBoxLayout()
-        self.worker_table = self.create_worker_table()
-        right_panel.addWidget(self.worker_table)
-        self.worker_check_button = QPushButton("Check Worker Status")
-        right_panel.addWidget(self.worker_check_button)
+        print("Initializing Worker Management UI...")
+        self.worker_ui = WorkerManagementUI(self)
+        right_panel.addWidget(self.worker_ui.worker_tab) 
         
+        if not self.worker_ui.worker_tab:
+            raise ValueError("ERROR: Worker Management UI failed to initialize.")
+
+        print("Worker Management UI Initialized.")
+
+        # Debugging: Print all tab names
+        for i in range(self.tab_widget.count()):
+            print(f"Tab {i}: {self.tab_widget.tabText(i)}")
+
         # Bottom Controls (Manual Job Management)
         controls_panel = QHBoxLayout()
         self.stop_selected_button = QPushButton("Stop Selected Scan")
@@ -81,6 +97,7 @@ class MainUI(QMainWindow):
         container.addLayout(controls_panel)
         main_widget.setLayout(container)
         self.setCentralWidget(main_widget)
+
 
     def create_pie_chart(self):
         """Creates and returns a pie chart widget with job distribution."""

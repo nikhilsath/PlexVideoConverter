@@ -143,4 +143,16 @@ def remove_jobs_from_queue(file_names):
     conn.commit()
     conn.close()
 
+def get_registered_workers():
+    """Fetches all registered workers from WorkerInfo table."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT hostname, ip_address, os, 'Connected' AS status, last_checkin 
+        FROM WorkerInfo
+        ORDER BY last_checkin DESC;
+    """)  # Make sure 'status' is manually added as 'Connected'
+    workers = cursor.fetchall()
+    conn.close()
+    return workers
 

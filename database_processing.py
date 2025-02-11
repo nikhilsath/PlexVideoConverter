@@ -1,6 +1,10 @@
 import sqlite3
 import datetime
 import logging
+import socket
+import platform
+import psutil
+import datetime
 
 # Logging configuration
 LOG_FILE = "database_processing.log"
@@ -96,6 +100,46 @@ def process_video_files():
     conn.close()
     logging.info(f"Updated {len(updates)} records with estimated size and space saved.")
 
+def get_local_machine_info():
+    """Fetch system information for worker registration."""
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+    os_type = platform.system()
+    cpu_info = platform.processor()
+    ram_info = f"{round(psutil.virtual_memory().total / (1024**3), 2)} GB"
+    return hostname, ip_address, os_type, cpu_info, ram_info
+
+def register_local_worker():
+    """Registers the local machine as a worker in WorkerInfo."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Get system details
+    hostname, ip_address, os_type, cpu_info, ram_info = get_local_machine_info()
+
+    # Insert or update the worker record
+    # Convert datetime to string before inserting
+    current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    cursor.execute("""
+        INSERT INTO WorkerInfo (hostname, ip_address, os, cpu_info, ram_info, last_checkin)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(hostname) DO UPDATE SET 
+            ip_address=excluded.ip_address,
+            os=excluded.os,
+            cpu_info=excluded.cpu_info,
+            ram_info=excluded.ram_info,
+            last_checkin=excluded.last_checkin;
+    """, (hostname, ip_address, os_type, cpu_info, ram_info, current_timestamp))
+
+
+    conn.commit()
+    conn.close()
+    print(f"Worker registered: {hostname} ({ip_address})")
+
+
 if __name__ == "__main__":
     copy_file_records_to_conversion_queue()
     process_video_files()
+    register_local_worker()
+
