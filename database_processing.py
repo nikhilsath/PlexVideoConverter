@@ -26,6 +26,13 @@ COMPRESSION_TABLE = {
     "cinepak": 0.65
 }
 
+EXCLUDED_IPS = {
+    "0.0.0.0",          # Default route
+    "255.255.255.255",  # Broadcast address
+    "224.0.0.251",      # mDNS multicast
+    "239.255.255.250"   # SSDP multicast
+}
+
 SKIP_CODECS = {"H.265", "HEVC", "AV1", "VP9"}  # Video codecs to be skipped
 
 DB_PATH = "plex_video_converter.db"
@@ -103,10 +110,16 @@ def process_video_files():
 def get_local_machine_info():
     """Fetch system information for worker registration."""
     hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
+    
+    try:
+        ip_address = socket.gethostbyname(hostname)
+    except socket.gaierror:
+        ip_address = "Unknown"
+
     os_type = platform.system()
     cpu_info = platform.processor()
     ram_info = f"{round(psutil.virtual_memory().total / (1024**3), 2)} GB"
+
     return hostname, ip_address, os_type, cpu_info, ram_info
 
 def register_local_worker():
@@ -117,7 +130,11 @@ def register_local_worker():
     # Get system details
     hostname, ip_address, os_type, cpu_info, ram_info = get_local_machine_info()
 
-    # Insert or update the worker record
+    # Skip registering if the IP is in the excluded list
+    if ip_address in EXCLUDED_IPS:
+        print(f"Skipping registration: {hostname} ({ip_address}) is in the excluded IP list.")
+        return
+
     # Convert datetime to string before inserting
     current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -131,7 +148,6 @@ def register_local_worker():
             ram_info=excluded.ram_info,
             last_checkin=excluded.last_checkin;
     """, (hostname, ip_address, os_type, cpu_info, ram_info, current_timestamp))
-
 
     conn.commit()
     conn.close()
