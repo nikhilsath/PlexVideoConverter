@@ -111,3 +111,36 @@ def move_jobs_to_front(file_names):
     conn.commit()
     conn.close()
 
+def remove_jobs_from_queue(file_names):
+    """Removes selected jobs from the queue by setting queue_position to NULL and job_status to 'pending',
+    then reorders the remaining queued jobs to remove gaps."""
+    
+    if not file_names:
+        return
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Step 1: Remove selected jobs by setting queue_position to NULL and job_status to 'pending'
+    query = f"""
+        UPDATE ConversionQueue 
+        SET queue_position = NULL, job_status = 'pending' 
+        WHERE file_name IN ({','.join(['?'] * len(file_names))});
+    """
+    cursor.execute(query, file_names)
+
+    # Step 2: Retrieve all queued jobs sorted by queue_position
+    cursor.execute("SELECT id FROM ConversionQueue WHERE queue_position IS NOT NULL ORDER BY queue_position ASC;")
+    queued_jobs = cursor.fetchall()
+
+    # Step 3: If there are remaining jobs, renumber queue positions from 1 to N
+    if queued_jobs:
+        new_positions = [(index + 1, job_id[0]) for index, job_id in enumerate(queued_jobs)]
+
+        # Step 4: Execute batch update to renumber the queue
+        cursor.executemany("UPDATE ConversionQueue SET queue_position = ? WHERE id = ?;", new_positions)
+
+    conn.commit()
+    conn.close()
+
+

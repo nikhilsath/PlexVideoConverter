@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QTableWidgetItem, QVBoxLayout, QTableWidget, QPushButton, QWidget, QLineEdit
+from PyQt6.QtWidgets import QTableWidgetItem, QHBoxLayout, QTableWidget, QPushButton, QWidget, QLineEdit, QVBoxLayout
 from PyQt6.QtCore import Qt
-from db_handler import get_conversion_jobs, update_jobs_queue_position_and_status, get_highest_queue_position, move_jobs_to_front
+from db_handler import get_conversion_jobs, update_jobs_queue_position_and_status, get_highest_queue_position, move_jobs_to_front, remove_jobs_from_queue
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -13,7 +13,9 @@ class JobListUI:
         self.setup_job_list()
 
     def setup_job_list(self):
-        """Creates and manages the Job List UI component with a search bar."""
+        """Creates and manages the Job List UI component with a search bar and button row."""
+        
+        # ✅ Define layout at the beginning
         layout = QVBoxLayout()
 
         # Search Bar
@@ -24,35 +26,40 @@ class JobListUI:
         # Job List Table
         self.main_ui.job_list = QTableWidget()
         self.main_ui.job_list.setColumnCount(4)
-        self.main_ui.job_list.setHorizontalHeaderLabels(["File Name", "Size (GB)", "Status","Order"])
+        self.main_ui.job_list.setHorizontalHeaderLabels(["File Name", "Size (GB)", "Status", "Order"])
 
-        # Load Job List Button
-        self.main_ui.refresh_jobs_button = QPushButton("Load Job List")
+        # ✅ Define a horizontal layout for buttons
+        button_layout = QHBoxLayout()
+
+        # Reload Button
+        self.main_ui.refresh_jobs_button = QPushButton("Reload")
         self.main_ui.refresh_jobs_button.clicked.connect(self.load_jobs)
+        button_layout.addWidget(self.main_ui.refresh_jobs_button)
 
         # Add to Queue Button
-        self.main_ui.add_to_queue_button = QPushButton("Add Selected to Queue")
+        self.main_ui.add_to_queue_button = QPushButton("Add")
         self.main_ui.add_to_queue_button.clicked.connect(self.add_selected_to_queue)
-        layout.addWidget(self.search_bar) 
-        layout.addWidget(self.main_ui.job_list)
-        layout.addWidget(self.main_ui.refresh_jobs_button)
-        layout.addWidget(self.main_ui.add_to_queue_button)
+        button_layout.addWidget(self.main_ui.add_to_queue_button)
 
-        # Add "Move to Front of Queue" Button
-        self.main_ui.move_to_front_button = QPushButton("Move to Front of Queue")
+        # Remove from Queue Button
+        self.main_ui.remove_from_queue_button = QPushButton("Remove")
+        self.main_ui.remove_from_queue_button.clicked.connect(self.remove_selected_from_queue)
+        button_layout.addWidget(self.main_ui.remove_from_queue_button)
+
+        # Move to Front of Queue Button
+        self.main_ui.move_to_front_button = QPushButton("Priority Add")
         self.main_ui.move_to_front_button.clicked.connect(self.move_selected_to_front)
-        layout.addWidget(self.main_ui.move_to_front_button)
+        button_layout.addWidget(self.main_ui.move_to_front_button)
+
+        # ✅ Add the search bar, job list, and button row to the main layout
+        layout.addWidget(self.search_bar)
+        layout.addWidget(self.main_ui.job_list)
+        layout.addLayout(button_layout)  # ✅ Add the button row
 
         container = QWidget()
         container.setLayout(layout)
         self.job_list_tab = container
 
-    def load_jobs(self):
-        logging.info("Loading jobs from the database...")
-        self.jobs = get_conversion_jobs()  # Store all jobs in memory
-        logging.info(f"Retrieved {len(self.jobs)} jobs from ConversionQueue.")
-        
-        self.display_jobs(self.jobs)  # Display all jobs initially
 
     def display_jobs(self, jobs):
         self.main_ui.job_list.setRowCount(0)  # Reset the table
@@ -129,3 +136,33 @@ class JobListUI:
 
         # Reload the job list
         self.load_jobs()
+
+    def remove_selected_from_queue(self):
+        """Removes selected jobs from the queue by calling remove_jobs_from_queue in db_handler."""
+        selected_rows = self.main_ui.job_list.selectedItems()
+        if not selected_rows:
+            logging.info("No jobs selected.")
+            return
+
+        file_names = set()
+        for item in selected_rows:
+            row = item.row()
+            file_name = self.main_ui.job_list.item(row, 0).text()  # File name is in column 0
+            file_names.add(file_name)
+
+        logging.info(f"Removing {len(file_names)} jobs from the queue: {file_names}")
+
+        # Call DB function to update queue position and status
+        remove_jobs_from_queue(list(file_names))
+
+        # Reload the job list
+        self.load_jobs()
+
+    def load_jobs(self):
+        """Fetch jobs from the database and update the UI."""
+        logging.info("Loading jobs from the database...")
+        
+        jobs = get_conversion_jobs()  # ✅ Fetch jobs from db_handler
+        logging.info(f"Retrieved {len(jobs)} jobs from ConversionQueue.")
+
+        self.display_jobs(jobs)  # ✅ Pass the jobs to update the UI

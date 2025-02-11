@@ -56,10 +56,6 @@ class MainUI(QMainWindow):
         self.tab_widget.addTab(self.logs_tab, "Logs / Errors")
         center_panel.addWidget(self.tab_widget)
         
-        # Add "Move to Front of Queue" Button Below the Job List
-        self.move_to_front_button = QPushButton("Move to Front of Queue")
-        center_panel.addWidget(self.move_to_front_button)
-        
         # Right Panel (Worker Management)
         right_panel = QVBoxLayout()
         self.worker_table = self.create_worker_table()
