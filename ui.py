@@ -8,7 +8,7 @@ from PyQt6.QtCharts import QChart, QChartView, QPieSeries
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QColor
 from ui_job_list import JobListUI
-from db_handler import get_total_space_saved, get_estimated_total_savings
+from db_handler import get_total_space_saved, get_estimated_total_savings, move_jobs_to_front
 
 class MainUI(QMainWindow):
     def __init__(self):

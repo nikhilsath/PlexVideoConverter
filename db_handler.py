@@ -85,3 +85,29 @@ def update_jobs_queue_position_and_status(job_updates):
     cursor.executemany("UPDATE ConversionQueue SET queue_position = ?, job_status = ? WHERE file_name = ?;", job_updates)
     conn.commit()
     conn.close()
+
+def move_jobs_to_front(file_names):
+    """Moves selected jobs to the front of the queue and sets status to 'queued'."""
+    if not file_names:
+        return
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Get the lowest queue position
+    cursor.execute("SELECT COALESCE(MIN(queue_position), 1) FROM ConversionQueue WHERE queue_position IS NOT NULL;")
+    min_position = cursor.fetchone()[0]
+
+    # Shift all existing queued jobs down
+    num_jobs = len(file_names)
+    cursor.execute(f"UPDATE ConversionQueue SET queue_position = queue_position + {num_jobs} WHERE queue_position IS NOT NULL;")
+
+    # Assign new queue positions and update job status
+    new_positions = []
+    for i, file_name in enumerate(file_names):
+        new_positions.append((min_position + i, "queued", file_name))
+
+    cursor.executemany("UPDATE ConversionQueue SET queue_position = ?, job_status = ? WHERE file_name = ?;", new_positions)
+    conn.commit()
+    conn.close()
+

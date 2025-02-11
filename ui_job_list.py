@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QTableWidgetItem, QVBoxLayout, QTableWidget, QPushButton, QWidget, QLineEdit
 from PyQt6.QtCore import Qt
-from db_handler import get_conversion_jobs, update_jobs_queue_position_and_status, get_highest_queue_position
+from db_handler import get_conversion_jobs, update_jobs_queue_position_and_status, get_highest_queue_position, move_jobs_to_front
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -37,6 +37,11 @@ class JobListUI:
         layout.addWidget(self.main_ui.job_list)
         layout.addWidget(self.main_ui.refresh_jobs_button)
         layout.addWidget(self.main_ui.add_to_queue_button)
+
+        # Add "Move to Front of Queue" Button
+        self.main_ui.move_to_front_button = QPushButton("Move to Front of Queue")
+        self.main_ui.move_to_front_button.clicked.connect(self.move_selected_to_front)
+        layout.addWidget(self.main_ui.move_to_front_button)
 
         container = QWidget()
         container.setLayout(layout)
@@ -82,32 +87,45 @@ class JobListUI:
         if not selected_rows:
             logging.info("No jobs selected.")
             return
-
         # Extract unique file names from selected rows
         file_names = set()
         for item in selected_rows:
             row = item.row()
             file_name = self.main_ui.job_list.item(row, 0).text()  # File name is in the first column
             file_names.add(file_name)
-
         logging.info(f"Queuing {len(file_names)} jobs: {file_names}")
-
         # Get the next available queue position
         current_max_position = get_highest_queue_position()
         next_position = current_max_position + 1
-
         # Prepare batch update data for queue position and status
         job_updates = []
         for file_name in file_names:
             job_updates.append((next_position, "queued", file_name))
             next_position += 1  # Increment for each job
-
         # Batch update queue position and job status
         update_jobs_queue_position_and_status(job_updates)
-
         # Log updates
         logging.info(f"Added {len(job_updates)} jobs to the queue with 'queued' status. New max queue position: {next_position - 1}")
-
         # Refresh the job list
         self.load_jobs()
 
+    def move_selected_to_front(self):
+        """Moves selected jobs to the front of the queue while maintaining order."""
+        selected_rows = self.main_ui.job_list.selectedItems()
+        if not selected_rows:
+            logging.info("No jobs selected.")
+            return
+
+        file_names = set()
+        for item in selected_rows:
+            row = item.row()
+            file_name = self.main_ui.job_list.item(row, 0).text()  # File name is in column 0
+            file_names.add(file_name)
+
+        logging.info(f"Moving {len(file_names)} jobs to the front of the queue: {file_names}")
+
+        # Call DB function to update queue position
+        move_jobs_to_front(list(file_names))
+
+        # Reload the job list
+        self.load_jobs()

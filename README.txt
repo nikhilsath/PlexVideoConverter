@@ -126,33 +126,6 @@ Plex Video Converter is a tool designed to manage and convert video files for us
 | file_size      | INTEGER  | Original file size |
 | space_saved    | INTEGER  | Space saved after conversion |
 | job_status     | TEXT     | Pending, queued, processing, completed |
+| queue_position | INTEGER  | Order in the queue |
 
 ---
-
-## **Recent Updates**
-- **Added Space Savings Calculation**
-  - `get_total_space_saved()` and `get_estimated_total_savings()` added to `db_handler.py`.
-  - UI now displays values in GB.
-- **Implemented Search in Job List**
-  - Users can filter jobs by file name.
-- **Refactored UI Code into Separate Modules**
-  - Improved maintainability by separating job list, worker management, and controls.
-
----
-
-## **GitHub Update**
-Run the following commands to update the repository:
-```bash
-  git add .
-  git commit -m "Updated README and space savings calculation logic"
-  git push origin main
-```
-
----
-
-## **Next Steps**
-- Implement detailed job progress tracking.
-- Add worker machine controls for load balancing.
-- Optimize conversion queue management.
-```
-
