@@ -139,14 +139,18 @@ def register_local_worker():
     current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute("""
-        INSERT INTO WorkerInfo (hostname, ip_address, os, cpu_info, ram_info, last_checkin)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO WorkerInfo (hostname, ip_address, os, cpu_info, ram_info, last_checkin, status)
+        VALUES (?, ?, ?, ?, ?, ?, 'Connected')
         ON CONFLICT(hostname) DO UPDATE SET 
             ip_address=excluded.ip_address,
             os=excluded.os,
             cpu_info=excluded.cpu_info,
             ram_info=excluded.ram_info,
-            last_checkin=excluded.last_checkin;
+            last_checkin=excluded.last_checkin,
+            status = CASE 
+                WHEN WorkerInfo.status IS NULL THEN 'Connected' 
+                ELSE WorkerInfo.status 
+            END;
     """, (hostname, ip_address, os_type, cpu_info, ram_info, current_timestamp))
 
     conn.commit()

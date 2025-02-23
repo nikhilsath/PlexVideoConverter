@@ -43,7 +43,7 @@ class WorkerManagementUI:
         """Loads worker details from the database into the worker table."""
         logging.info("Loading workers from the database...")
         workers = get_registered_workers()
-        logging.info(f"Retrieved {len(workers)} workers from WorkerInfo.")
+        logging.info(f"Retrieved {len(workers)} workers from WorkerInfo.") #Log how many workers retrieved 
 
         self.main_ui.worker_table.setRowCount(0)  # Clear existing rows
 
