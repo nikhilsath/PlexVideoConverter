@@ -1,4 +1,5 @@
 import sqlite3
+import logging
 
 DB_PATH = "plex_video_converter.db"
 
@@ -156,3 +157,41 @@ def get_registered_workers():
     conn.close()
     return workers
 
+def update_conversion_queue():
+    """Clears the queue and updates it with new/modified records from FileRecords."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Clear the existing conversion queue
+    cursor.execute("DELETE FROM ConversionQueue;")
+    logging.info("Cleared ConversionQueue.")
+
+    # Insert updated records from FileRecords
+    cursor.execute("""
+        INSERT INTO ConversionQueue (
+            file_name, file_path, file_size, last_modified, scan_date, 
+            storage_location, video_codec, resolution, duration, 
+            bit_rate, audio_codec, audio_channels, sample_rate, 
+            language, container_format, original_size, estimated_size, 
+            space_saved, creation_date, modification_date
+        )
+        SELECT 
+            file_name, file_path, file_size, file_modified AS last_modified, 
+            last_scanned AS scan_date, 
+            COALESCE(top_folder, 'Unknown') AS storage_location,  
+            video_codec, resolution, duration, video_bitrate AS bit_rate, 
+            audio_codec, audio_channels, audio_sample_rate AS sample_rate, 
+            audio_languages AS language, file_format AS container_format, 
+            file_size AS original_size, NULL AS estimated_size, NULL AS space_saved, 
+            CURRENT_TIMESTAMP AS creation_date, NULL AS modification_date
+        FROM FileRecords
+        WHERE video_codec NOT IN ('hevc', 'av1', 'vp9')
+        AND video_codec IS NOT NULL;
+    """)
+
+    rows_inserted = cursor.rowcount
+    conn.commit()
+    conn.close()
+
+    logging.info(f"Inserted {rows_inserted} updated records into ConversionQueue.")
+    return rows_inserted

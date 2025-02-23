@@ -1,16 +1,18 @@
 import sys
 import subprocess
+import logging
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QTableWidget, QTableWidgetItem, QLabel, QTabWidget
+    QTableWidget, QTableWidgetItem, QLabel, QTabWidget, QMessageBox
 )
 from PyQt6.QtCharts import QChart, QChartView, QPieSeries
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QColor
 from ui_job_list import JobListUI
-from db_handler import get_total_space_saved, get_estimated_total_savings, move_jobs_to_front
+from db_handler import get_total_space_saved, get_estimated_total_savings, move_jobs_to_front, update_conversion_queue
 from database_processing import register_local_worker
 from ui_worker_management import WorkerManagementUI
+from db_compare import compare_file_records
 
 
 class MainUI(QMainWindow):
@@ -36,6 +38,28 @@ class MainUI(QMainWindow):
             subprocess.run(["python3", "database_processing.py"], check=True)
         except subprocess.CalledProcessError as e:
             print(f"Error running database processing: {e}")
+            
+    def pull_pqc_data(self):
+        """Handles Pull PQC Data button click."""
+        total_changes = compare_file_records()
+        print(f"Total changes found: {total_changes}")  # Debugging Step 1
+
+        if total_changes > 0:
+            response = QMessageBox.question(
+                self, "Confirm Update",
+                f"Clear queue and update {total_changes} items?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if response == QMessageBox.StandardButton.Yes:
+                print("Calling update_conversion_queue() now...")  # Debugging Step 2
+                updated_rows = update_conversion_queue()
+                print(f"Updated rows: {updated_rows}")  # Debugging Step 3
+                QMessageBox.information(
+                    self, "Update Complete", 
+                    f"Queue cleared and {updated_rows} items updated."
+                )
+        else:
+            QMessageBox.information(self, "No Updates", "No changes detected between databases.")
 
     def initUI(self):
         """Initialize the UI layout and structure"""
@@ -81,9 +105,10 @@ class MainUI(QMainWindow):
 
         # Bottom Controls (Manual Job Management)
         controls_panel = QHBoxLayout()
-        self.stop_selected_button = QPushButton("Stop Selected Scan")
+        self.pull_pqc_button = QPushButton("Pull PQC Data")
+        self.pull_pqc_button.clicked.connect(self.pull_pqc_data)
         self.stop_all_button = QPushButton("Stop All Scans")
-        controls_panel.addWidget(self.stop_selected_button)
+        controls_panel.addWidget(self.pull_pqc_button)
         controls_panel.addWidget(self.stop_all_button)
         
         # Add Panels to Main Layout
