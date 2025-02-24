@@ -73,6 +73,16 @@ class JobListUI:
             self.main_ui.job_list.setItem(row_idx, 3, QTableWidgetItem(queue_pos_text))
 
 
+    def load_jobs(self):
+        """Fetch jobs from the database and update the UI."""
+        logging.info("Loading jobs from the database...")
+        
+        self.jobs = get_conversion_jobs()  # Assign the jobs to self.jobs
+        logging.info(f"Retrieved {len(self.jobs)} jobs from ConversionQueue.")
+
+        self.display_jobs(self.jobs)  # Now pass self.jobs to update the UI
+
+        
     def filter_jobs(self):
         """Filters the displayed jobs based on search input."""
         search_text = self.search_bar.text().strip().lower()
@@ -158,11 +168,4 @@ class JobListUI:
         # Reload the job list
         self.load_jobs()
 
-    def load_jobs(self):
-        """Fetch jobs from the database and update the UI."""
-        logging.info("Loading jobs from the database...")
-        
-        jobs = get_conversion_jobs()  # ✅ Fetch jobs from db_handler
-        logging.info(f"Retrieved {len(jobs)} jobs from ConversionQueue.")
 
-        self.display_jobs(jobs)  # ✅ Pass the jobs to update the UI
