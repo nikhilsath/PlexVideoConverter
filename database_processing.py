@@ -190,7 +190,7 @@ def register_local_worker():
     conn.commit()
     conn.close()
     print(f"Worker registered: {hostname} ({ip_address}) with workerID {workerID}")
-
+    return workerID
 
 if __name__ == "__main__":
     copy_file_records_to_conversion_queue()

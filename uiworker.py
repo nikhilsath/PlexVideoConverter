@@ -6,13 +6,16 @@ from PyQt6.QtWidgets import (
 )
 from db_handler import get_queue
 from PyQt6.QtCore import Qt
+from worker_logic import set_worker_processing_status
+from database_processing import register_local_worker 
 
 class WorkerUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Worker UI - Plex Video Converter")
         self.setGeometry(200, 200, 800, 600)
-        
+        self.workerID = register_local_worker() # Register the local worker and store the returned workerID
+
         main_layout = QHBoxLayout(self)
         
         # Left Panel - Job Queue and Logs/Errors
@@ -49,6 +52,7 @@ class WorkerUI(QWidget):
         self.worker_info_label = QLabel("Worker Info: Not Connected")
         
         self.start_button = QPushButton("Start Processing")
+        self.start_button.clicked.connect(self.start_processing)
         self.stop_button = QPushButton("Stop Processing")
         self.refresh_button = QPushButton("Refresh Queue")
         
@@ -56,7 +60,7 @@ class WorkerUI(QWidget):
         self.refresh_button.clicked.connect(self.update_queue_table)
         
         # Enable the refresh button, disable start/stop initially
-        self.start_button.setEnabled(False)
+        self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self.refresh_button.setEnabled(True)
         
@@ -107,6 +111,27 @@ class WorkerUI(QWidget):
             self.job_queue_table.setItem(row_index, 3, QTableWidgetItem(queue_str))
         
         print(f"Queue table updated with {len(jobs)} items.")
+
+    def start_processing(self):
+        """
+        Called when the "Start Processing" button is clicked.
+        Updates the WorkerInfo table for the current worker by setting its status to "Processing"
+        and triggers a refresh of the queue.
+        """
+        # Call the worker logic module to update the database
+        success = set_worker_processing_status(self.workerID)
+        
+        if success:
+            # Update the UI to reflect the new status
+            self.worker_status_label.setText("Worker Status: Processing")
+            
+            # Trigger a refresh of the queue in this UI
+            self.update_queue_table()
+            
+            # Optionally, if ui.py is running, trigger its refresh functionality here.
+            # This may require an inter-process communication mechanism or a shared signal.
+        else:
+            print("Failed to update worker status. Please try again.")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
