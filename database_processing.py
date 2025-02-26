@@ -4,7 +4,7 @@ import logging
 import socket
 import platform
 import psutil
-import datetime
+import uuid
 
 # Logging configuration
 LOG_FILE = "database_processing.log"
@@ -107,6 +107,30 @@ def process_video_files():
     conn.close()
     logging.info(f"Updated {len(updates)} records with estimated size and space saved.")
 
+def clear_workers():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Count the number of workers with "processing" in the status column
+    cursor.execute("""
+        SELECT COUNT(*) 
+        FROM WorkerInfo 
+        WHERE status LIKE '%processing%'
+    """)
+    processing_count = cursor.fetchone()[0]
+
+    if processing_count == 0:
+        # No workers are processing, so clear the table
+        cursor.execute("DELETE FROM WorkerInfo")
+        conn.commit()
+        print("Worker table cleared.")
+        conn.close()
+        return True
+    else:
+        print(f"Cannot clear worker table. {processing_count} workers are still processing.")
+        conn.close()
+        return False
+
 def get_local_machine_info():
     """Fetch system information for worker registration."""
     hostname = socket.gethostname()
@@ -124,9 +148,18 @@ def get_local_machine_info():
 
 def register_local_worker():
     """Registers the local machine as a worker in WorkerInfo."""
+    
+    # Attempt to clear the worker table; if not cleared, abort registration.
+    if not clear_workers():
+        print("Aborting registration because active workers are still processing.")
+        return
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-
+    
+    # Generate a unique workerID using UUID
+    workerID = str(uuid.uuid4())
+    
     # Get system details
     hostname, ip_address, os_type, cpu_info, ram_info = get_local_machine_info()
 
@@ -139,23 +172,24 @@ def register_local_worker():
     current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute("""
-        INSERT INTO WorkerInfo (hostname, ip_address, os, cpu_info, ram_info, last_checkin, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'Connected')
-        ON CONFLICT(hostname) DO UPDATE SET 
-            ip_address=excluded.ip_address,
-            os=excluded.os,
-            cpu_info=excluded.cpu_info,
-            ram_info=excluded.ram_info,
-            last_checkin=excluded.last_checkin,
+        INSERT INTO WorkerInfo (hostname, ip_address, os, cpu_info, ram_info, last_checkin, status, workerID)
+        VALUES (?, ?, ?, ?, ?, ?, 'Connected', ?)
+        ON CONFLICT(workerID) DO UPDATE SET 
+            hostname = excluded.hostname,
+            ip_address = excluded.ip_address,
+            os = excluded.os,
+            cpu_info = excluded.cpu_info,
+            ram_info = excluded.ram_info,
+            last_checkin = excluded.last_checkin,
             status = CASE 
                 WHEN WorkerInfo.status IS NULL THEN 'Connected' 
                 ELSE WorkerInfo.status 
             END;
-    """, (hostname, ip_address, os_type, cpu_info, ram_info, current_timestamp))
+    """, (hostname, ip_address, os_type, cpu_info, ram_info, current_timestamp, workerID))
 
     conn.commit()
     conn.close()
-    print(f"Worker registered: {hostname} ({ip_address})")
+    print(f"Worker registered: {hostname} ({ip_address}) with workerID {workerID}")
 
 
 if __name__ == "__main__":
