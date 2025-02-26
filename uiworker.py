@@ -81,6 +81,15 @@ class WorkerUI(QWidget):
         self.update_queue_table()
         self.update_stop_button()
         print(self.workerID)
+    
+    def closeEvent(self, event):
+        """
+        Override the close event to trigger stop processing before the window closes.
+        """
+        # Call stop_processing() to update the worker's status to "Connected"
+        self.stop_processing()
+        # Accept the event to allow the window to close
+        event.accept()
 
     def update_queue_table(self):
         """
@@ -163,7 +172,6 @@ class WorkerUI(QWidget):
             self.update_queue_table()  # Optionally refresh the queue
         else:
             print("Failed to update worker status to Connected. Please try again.")
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

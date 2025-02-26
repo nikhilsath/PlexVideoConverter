@@ -40,7 +40,6 @@ def get_worker_status(workerID):
         cursor.execute("SELECT status FROM WorkerInfo WHERE workerID = ?", (workerID,))
         result = cursor.fetchone()
         conn.close()
-        print(f"DEBUG: get_worker_status({workerID}) returned {result}")
         if result:
             return result[0]
         return None
