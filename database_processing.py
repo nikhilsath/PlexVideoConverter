@@ -125,11 +125,9 @@ def clear_workers():
         conn.commit()
         print("Worker table cleared.")
         conn.close()
-        return True
     else:
         print(f"Cannot clear worker table. {processing_count} workers are still processing.")
         conn.close()
-        return False
 
 def get_local_machine_info():
     """Fetch system information for worker registration."""
@@ -147,18 +145,14 @@ def get_local_machine_info():
     return hostname, ip_address, os_type, cpu_info, ram_info
 
 def register_local_worker():
-    """Registers the local machine as a worker in WorkerInfo."""
+    """Registers or updates the local machine as a worker in WorkerInfo.
     
-    # Attempt to clear the worker table; if not cleared, abort registration.
-    if not clear_workers():
-        print("Aborting registration because active workers are still processing.")
-        return
-
+    Checks if a worker record already exists for the local machine based on hostname and ip_address.
+    If it exists, updates the record and returns the existing workerID.
+    Otherwise, creates a new record and returns the new workerID.
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
-    # Generate a unique workerID using UUID
-    workerID = str(uuid.uuid4())
     
     # Get system details
     hostname, ip_address, os_type, cpu_info, ram_info = get_local_machine_info()
@@ -166,30 +160,34 @@ def register_local_worker():
     # Skip registering if the IP is in the excluded list
     if ip_address in EXCLUDED_IPS:
         print(f"Skipping registration: {hostname} ({ip_address}) is in the excluded IP list.")
-        return
+        conn.close()
+        return None
 
-    # Convert datetime to string before inserting
+    # Check if a record already exists for this worker using hostname and ip_address
+    cursor.execute("SELECT workerID FROM WorkerInfo WHERE hostname = ? AND ip_address = ?", (hostname, ip_address))
+    result = cursor.fetchone()
     current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cursor.execute("""
-        INSERT INTO WorkerInfo (hostname, ip_address, os, cpu_info, ram_info, last_checkin, status, workerID)
-        VALUES (?, ?, ?, ?, ?, ?, 'Connected', ?)
-        ON CONFLICT(workerID) DO UPDATE SET 
-            hostname = excluded.hostname,
-            ip_address = excluded.ip_address,
-            os = excluded.os,
-            cpu_info = excluded.cpu_info,
-            ram_info = excluded.ram_info,
-            last_checkin = excluded.last_checkin,
-            status = CASE 
-                WHEN WorkerInfo.status IS NULL THEN 'Connected' 
-                ELSE WorkerInfo.status 
-            END;
-    """, (hostname, ip_address, os_type, cpu_info, ram_info, current_timestamp, workerID))
-
+    
+    if result is not None:
+        # Existing record found; update it.
+        workerID = result[0]
+        cursor.execute("""
+            UPDATE WorkerInfo 
+            SET os = ?, cpu_info = ?, ram_info = ?, last_checkin = ?, status = 'Connected'
+            WHERE workerID = ?
+        """, (os_type, cpu_info, ram_info, current_timestamp, workerID))
+        print(f"Updated existing worker record for {hostname} ({ip_address}) with workerID {workerID}")
+    else:
+        # No record exists; create a new one.
+        workerID = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO WorkerInfo (hostname, ip_address, os, cpu_info, ram_info, last_checkin, status, workerID)
+            VALUES (?, ?, ?, ?, ?, ?, 'Connected', ?)
+        """, (hostname, ip_address, os_type, cpu_info, ram_info, current_timestamp, workerID))
+        print(f"Created new worker record for {hostname} ({ip_address}) with workerID {workerID}")
+    
     conn.commit()
     conn.close()
-    print(f"Worker registered: {hostname} ({ip_address}) with workerID {workerID}")
     return workerID
 
 if __name__ == "__main__":

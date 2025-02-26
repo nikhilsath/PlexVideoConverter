@@ -6,8 +6,8 @@ from PyQt6.QtWidgets import (
 )
 from db_handler import get_queue
 from PyQt6.QtCore import Qt
-from worker_logic import set_worker_processing_status
 from database_processing import register_local_worker 
+from worker_logic import set_worker_processing_status, get_worker_status, set_worker_connected_status
 
 class WorkerUI(QWidget):
     def __init__(self):
@@ -54,6 +54,7 @@ class WorkerUI(QWidget):
         self.start_button = QPushButton("Start Processing")
         self.start_button.clicked.connect(self.start_processing)
         self.stop_button = QPushButton("Stop Processing")
+        self.stop_button.clicked.connect(self.stop_processing)
         self.refresh_button = QPushButton("Refresh Queue")
         
         # Connect the refresh button to our update method
@@ -78,6 +79,8 @@ class WorkerUI(QWidget):
         
         # Update the queue table when the UI loads
         self.update_queue_table()
+        self.update_stop_button()
+        print(self.workerID)
 
     def update_queue_table(self):
         """
@@ -127,11 +130,40 @@ class WorkerUI(QWidget):
             
             # Trigger a refresh of the queue in this UI
             self.update_queue_table()
-            
+            self.update_stop_button()
             # Optionally, if ui.py is running, trigger its refresh functionality here.
             # This may require an inter-process communication mechanism or a shared signal.
         else:
             print("Failed to update worker status. Please try again.")
+
+    def update_stop_button(self):
+        """
+        Checks the current status of the worker in the database.
+        Enables the Stop Processing button only if the worker's status includes "Processing".
+        Also adjusts the Start Processing button accordingly.
+        """
+        status = get_worker_status(self.workerID)
+        if status and "Processing" in status:
+            self.stop_button.setEnabled(True)
+            self.start_button.setEnabled(False)
+        else:
+            self.stop_button.setEnabled(False)
+            self.start_button.setEnabled(True)
+
+    def stop_processing(self):
+        """
+        Called when the Stop Processing button is clicked.
+        Updates the WorkerInfo table for the current worker by setting its status to "Connected",
+        then refreshes the UI.
+        """
+        success = set_worker_connected_status(self.workerID)
+        if success:
+            self.worker_status_label.setText("Worker Status: Connected")
+            self.update_stop_button()  # Refresh button states based on new status
+            self.update_queue_table()  # Optionally refresh the queue
+        else:
+            print("Failed to update worker status to Connected. Please try again.")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
