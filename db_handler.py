@@ -10,11 +10,27 @@ def get_conversion_jobs():
     cursor.execute("""
         SELECT file_name, file_size, job_status, queue_position 
         FROM ConversionQueue 
-        ORDER BY queue_position IS NULL, queue_position ASC;
+        ORDER BY queue_position IS NULL, queue_position ASC, file_size DESC 
     """)  
     jobs = cursor.fetchall()
     conn.close()
     return jobs
+
+def get_queue():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()  # Initialize cursor
+
+    cursor.execute("""
+        SELECT file_name, file_size, job_status, queue_position 
+        FROM ConversionQueue 
+        WHERE queue_position IS NOT NULL
+        ORDER BY queue_position ASC;
+    """)
+    
+    queued = cursor.fetchall()
+    conn.close()
+    return queued
+
 
 def update_job_status_to_queued(file_names):
     """Update selected job status to 'queued' in the database and assign queue positions."""
