@@ -2,7 +2,7 @@ import sys
 import math
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
-    QTableWidgetItem, QTextEdit, QPushButton, QTabWidget, QLabel
+    QTableWidgetItem, QTextEdit, QPushButton, QTabWidget, QLabel, QFileDialog
 )
 from db_handler import get_queue
 from PyQt6.QtCore import Qt
@@ -50,13 +50,16 @@ class WorkerUI(QWidget):
         
         self.worker_status_label = QLabel("Worker Status: Idle")
         self.worker_info_label = QLabel("Worker Info: Not Connected")
-        
+        self.destination_label = QLabel("Destination Folder: Not Selected")
+
         self.start_button = QPushButton("Start Processing")
         self.start_button.clicked.connect(self.start_processing)
         self.stop_button = QPushButton("Stop Processing")
         self.stop_button.clicked.connect(self.stop_processing)
         self.refresh_button = QPushButton("Refresh Queue")
-        
+        self.select_folder_button = QPushButton("Select Destination Folder")
+        self.select_folder_button.clicked.connect(self.select_destination_folder)
+
         # Connect the refresh button to our update method
         self.refresh_button.clicked.connect(self.update_queue_table)
         
@@ -67,9 +70,11 @@ class WorkerUI(QWidget):
         
         right_panel.addWidget(self.worker_status_label)
         right_panel.addWidget(self.worker_info_label)
+        right_panel.addWidget(self.destination_label)
         right_panel.addWidget(self.start_button)
         right_panel.addWidget(self.stop_button)
         right_panel.addWidget(self.refresh_button)
+        right_panel.addWidget(self.select_folder_button)
         
         # Add Panels to Main Layout
         main_layout.addLayout(left_panel, 2)  # Left panel takes 2/3 of space
@@ -172,6 +177,20 @@ class WorkerUI(QWidget):
             self.update_queue_table()  # Optionally refresh the queue
         else:
             print("Failed to update worker status to Connected. Please try again.")
+
+    def select_destination_folder(self):
+        """
+        Opens a file dialog to let the user select a destination folder for file copying.
+        The selected folder is stored in self.destination_folder and displayed in the UI.
+        """
+        folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder")
+        if folder:
+            self.destination_folder = folder
+            self.destination_label.setText(f"Destination Folder: {folder}")
+            print(f"Destination folder selected: {folder}")
+        else:
+            print("No folder selected.")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
